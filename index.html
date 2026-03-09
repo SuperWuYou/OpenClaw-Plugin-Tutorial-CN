@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>插件开发指南 - 文档查看器</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/core.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/python.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/javascript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/json.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/bash.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/yaml.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/django.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 侧边栏 */
+        .sidebar {
+            width: 280px;
+            background: #161b22;
+            border-right: 1px solid #30363d;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #30363d;
+        }
+
+        .sidebar-header h1 {
+            font-size: 18px;
+            color: #58a6ff;
+            margin-bottom: 5px;
+        }
+
+        .sidebar-header p {
+            font-size: 12px;
+            color: #8b949e;
+        }
+
+        .file-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .file-item {
+            padding: 10px 15px;
+            margin: 2px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-item:hover {
+            background: #21262d;
+        }
+
+        .file-item.active {
+            background: #388bfd26;
+            color: #58a6ff;
+        }
+
+        .file-item .icon {
+            font-size: 16px;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .content-header {
+            padding: 15px 30px;
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .content-header h2 {
+            font-size: 16px;
+            color: #c9d1d9;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            padding: 6px 12px;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #c9d1d9;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: #30363d;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .content-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px 50px;
+        }
+
+        /* Markdown 样式 */
+        .markdown-body {
+            max-width: 900px;
+            margin: 0 auto;
+            line-height: 1.7;
+        }
+
+        .markdown-body h1 {
+            font-size: 32px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #30363d;
+            margin-bottom: 25px;
+            color: #f0f6fc;
+        }
+
+        .markdown-body h2 {
+            font-size: 24px;
+            margin-top: 35px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #30363d;
+            color: #f0f6fc;
+        }
+
+        .markdown-body h3 {
+            font-size: 20px;
+            margin-top: 25px;
+            margin-bottom: 12px;
+            color: #f0f6fc;
+        }
+
+        .markdown-body h4 {
+            font-size: 16px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            color: #f0f6fc;
+        }
+
+        .markdown-body p {
+            margin-bottom: 16px;
+        }
+
+        .markdown-body a {
+            color: #58a6ff;
+            text-decoration: none;
+        }
+
+        .markdown-body a:hover {
+            text-decoration: underline;
+        }
+
+        .markdown-body code {
+            background: #161b22;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', 'Consolas', 'Liberation Mono', Menlo, monospace;
+            font-size: 85%;
+        }
+
+        .markdown-body pre {
+            background: #161b22;
+            border-radius: 8px;
+            padding: 16px;
+            overflow-x: auto;
+            margin-bottom: 16px;
+            border: 1px solid #30363d;
+        }
+
+        .markdown-body pre code {
+            background: none;
+            padding: 0;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .markdown-body blockquote {
+            border-left: 4px solid #58a6ff;
+            padding-left: 20px;
+            margin: 20px 0;
+            color: #8b949e;
+        }
+
+        .markdown-body ul, .markdown-body ol {
+            padding-left: 25px;
+            margin-bottom: 16px;
+        }
+
+        .markdown-body li {
+            margin-bottom: 8px;
+        }
+
+        .markdown-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .markdown-body th, .markdown-body td {
+            border: 1px solid #30363d;
+            padding: 10px 15px;
+            text-align: left;
+        }
+
+        .markdown-body th {
+            background: #161b22;
+            font-weight: 600;
+        }
+
+        .markdown-body tr:nth-child(even) {
+            background: #161b22;
+        }
+
+        .markdown-body img {
+            max-width: 100%;
+            border-radius: 8px;
+        }
+
+        .markdown-body hr {
+            border: none;
+            border-top: 1px solid #30363d;
+            margin: 30px 0;
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+        }
+
+        .loading::after {
+            content: '';
+            width: 40px;
+            height: 40px;
+            border: 3px solid #30363d;
+            border-top-color: #58a6ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0d1117;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #30363d;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #484f58;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 220px;
+            }
+            .content-body {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h1>插件开发指南</h1>
+            <p>OpenClaw Documentation</p>
+        </div>
+        <div class="file-list" id="fileList">
+            <div class="loading"></div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="content-header">
+            <h2 id="currentFile">选择一个文档开始阅读</h2>
+            <div class="nav-buttons">
+                <button class="nav-btn" id="prevBtn" onclick="prevFile()">← 上一篇</button>
+                <button class="nav-btn" id="nextBtn" onclick="nextFile()">下一篇 →</button>
+            </div>
+        </div>
+        <div class="content-body">
+            <div class="markdown-body" id="content">
+                <p style="color: #8b949e; text-align: center; margin-top: 100px;">
+                    请从左侧选择一个文档
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let files = [];
+        let currentIndex = -1;
+
+        // 初始化
+        async function init() {
+            try {
+                const response = await fetch('/api/files');
+                files = await response.json();
+                renderFileList();
+                if (files.length > 0) {
+                    // 默认加载 README.md 或第一个文件
+                    const defaultFile = files.includes('README.md') ? 'README.md' : files[0];
+                    loadFile(defaultFile);
+                }
+            } catch (error) {
+                document.getElementById('fileList').innerHTML =
+                    '<p style="color: #f85149; padding: 20px;">加载文件列表失败</p>';
+            }
+        }
+
+        // 渲染文件列表
+        function renderFileList() {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = files.map((file, index) => {
+                const name = file.replace('.md', '');
+                const icon = getFileIcon(file);
+                return `
+                    <div class="file-item" data-index="${index}" onclick="loadFile('${file}')">
+                        <span class="icon">${icon}</span>
+                        <span>${name}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 获取文件图标
+        function getFileIcon(filename) {
+            if (filename === 'README.md') return '📋';
+            if (filename.includes('介绍')) return '📖';
+            if (filename.includes('快速')) return '🚀';
+            if (filename.includes('概念')) return '💡';
+            if (filename.includes('教程')) return '📚';
+            if (filename.includes('指南')) return '📝';
+            if (filename.includes('API')) return '⚙️';
+            if (filename.includes('示例')) return '🎯';
+            if (filename.includes('最佳')) return '⭐';
+            if (filename.includes('FAQ')) return '❓';
+            if (filename.includes('生态')) return '🌐';
+            if (filename.includes('更新')) return '📜';
+            if (filename.includes('附录')) return '📎';
+            return '📄';
+        }
+
+        // 加载文件
+        async function loadFile(filename) {
+            currentIndex = files.indexOf(filename);
+
+            // 更新激活状态
+            document.querySelectorAll('.file-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            document.querySelector(`.file-item[data-index="${currentIndex}"]`)?.classList.add('active');
+
+            // 更新标题
+            document.getElementById('currentFile').textContent = filename.replace('.md', '');
+
+            // 更新导航按钮
+            updateNavButtons();
+
+            // 显示加载状态
+            document.getElementById('content').innerHTML = '<div class="loading"></div>';
+
+            try {
+                const response = await fetch(`/api/content?file=${encodeURIComponent(filename)}`);
+                const data = await response.json();
+
+                // 配置 marked
+                marked.setOptions({
+                    highlight: function(code, lang) {
+                        if (lang && hljs.getLanguage(lang)) {
+                            return hljs.highlight(code, { language: lang }).value;
+                        }
+                        return code;
+                    },
+                    breaks: true,
+                    gfm: true
+                });
+
+                // 渲染 Markdown
+                document.getElementById('content').innerHTML = marked.parse(data.content);
+            } catch (error) {
+                document.getElementById('content').innerHTML =
+                    '<p style="color: #f85149;">加载文档失败: ' + error.message + '</p>';
+            }
+        }
+
+        // 更新导航按钮状态
+        function updateNavButtons() {
+            document.getElementById('prevBtn').disabled = currentIndex <= 0;
+            document.getElementById('nextBtn').disabled = currentIndex >= files.length - 1;
+        }
+
+        // 上一篇
+        function prevFile() {
+            if (currentIndex > 0) {
+                loadFile(files[currentIndex - 1]);
+            }
+        }
+
+        // 下一篇
+        function nextFile() {
+            if (currentIndex < files.length - 1) {
+                loadFile(files[currentIndex + 1]);
+            }
+        }
+
+        // 键盘快捷键
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' && currentIndex > 0) {
+                prevFile();
+            } else if (e.key === 'ArrowRight' && currentIndex < files.length - 1) {
+                nextFile();
+            }
+        });
+
+        // 启动
+        init();
+    </script>
+</body>
+</html>
