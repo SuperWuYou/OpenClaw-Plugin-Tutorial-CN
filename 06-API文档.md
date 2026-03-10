@@ -1065,8 +1065,8 @@ interface ChannelPlugin {
 
   /** Gateway 集成（可选） */
   gateway?: {
-    start?: (ctx: GatewayContext) => Promise<void>;
-    stop?: (ctx: GatewayContext) => Promise<void>;
+    startAccount?: (ctx: ChannelGatewayContext) => Promise<unknown>;
+    stopAccount?: (ctx: ChannelGatewayContext) => Promise<void>;
   };
 
   /** 设置向导（可选） */
