@@ -1031,13 +1031,18 @@ interface ChannelPlugin {
 
   /** 能力定义 */
   capabilities: {
-    chatTypes: ("direct" | "group" | "channel")[];
-    media?: boolean;
-    threading?: boolean;
-    editing?: boolean;
-    deletion?: boolean;
+    chatTypes: ("direct" | "group" | "channel" | "thread")[];
+    polls?: boolean;
     reactions?: boolean;
-    streaming?: boolean;
+    edit?: boolean;
+    unsend?: boolean;
+    reply?: boolean;
+    effects?: boolean;
+    groupManagement?: boolean;
+    threads?: boolean;
+    media?: boolean;
+    nativeCommands?: boolean;
+    blockStreaming?: boolean;
   };
 
   /** 配置处理 */
