@@ -1053,10 +1053,22 @@ interface ChannelPlugin {
 
   /** 出站消息处理 */
   outbound: {
-    deliveryMode: "direct" | "queue";
-    sendText: (params: SendTextParams) => Promise<SendResult>;
-    sendMedia?: (params: SendMediaParams) => Promise<SendResult>;
-    sendReaction?: (params: SendReactionParams) => Promise<SendResult>;
+    deliveryMode: "direct" | "gateway" | "hybrid";
+    chunker?: ((text: string, limit: number) => string[]) | null;
+    chunkerMode?: "text" | "markdown";
+    textChunkLimit?: number;
+    pollMaxOptions?: number;
+    resolveTarget?: (params: {
+      cfg?: OpenClawConfig;
+      to?: string;
+      allowFrom?: string[];
+      accountId?: string | null;
+      mode?: ChannelOutboundTargetMode;
+    }) => { ok: true; to: string } | { ok: false; error: Error };
+    sendPayload?: (ctx: ChannelOutboundPayloadContext) => Promise<OutboundDeliveryResult>;
+    sendText?: (ctx: ChannelOutboundContext) => Promise<OutboundDeliveryResult>;
+    sendMedia?: (ctx: ChannelOutboundContext) => Promise<OutboundDeliveryResult>;
+    sendPoll?: (ctx: ChannelPollContext) => Promise<ChannelPollResult>;
   };
 
   /** 入站消息处理（可选） */
